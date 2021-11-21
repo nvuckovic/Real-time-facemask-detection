@@ -3,7 +3,6 @@ import tensorflow.keras.preprocessing.image as Preprocess
 import tensorflow.keras.applications as App
 import tensorflow.keras.layers as Layers
 import tensorflow.keras.models as ML
-#from tensorflow.keras.models import Model 
 import tensorflow.keras.optimizers as optimizer
 import matplotlib.pyplot as plt
 import numpy 
@@ -13,7 +12,6 @@ import tensorflow.keras.utils as utils
 import sklearn.preprocessing as SKPreprocess
 import sklearn.model_selection as SKSelecton 
 import sklearn.metrics as SKMetrics
-#from imutils import paths
 
 def StoreInfo(CATEGORIES,DIRECTORY):
 	data = []
@@ -86,8 +84,7 @@ aug = Preprocess.ImageDataGenerator(rotation_range=20,zoom_range=0.15,width_shif
 
 # load the MobileNetV2 network, ensuring the head FC layer sets are
 # left off
-baseModel = App.MobileNetV2(weights="imagenet", include_top=False,
-	input_tensor=Layers.Input(shape=(224, 224, 3)))
+baseModel = App.MobileNetV2(weights="imagenet", include_top=False, input_tensor=Layers.Input(shape=(224, 224, 3)))
 
 
 headModel = Construct_Head_model(baseModel)
