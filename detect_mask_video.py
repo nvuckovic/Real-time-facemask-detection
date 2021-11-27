@@ -1,21 +1,20 @@
 #import the necessary packages
+import numpy
+import imutils, time, cv2, os
+import imutils.video as Video
 import tensorflow.keras.applications.mobilenet_v2  as mobilenet 
-
 import tensorflow.keras.preprocessing.image as Preprocess
 import tensorflow.keras.models as ML
-import imutils.video as Video
-import imutils, time, cv2,os
-import numpy
-
+import threading
 # load our serialized face detector model from disk
-prototxtPath = r"face_detector\deploy.prototxt"
-weightsPath = r"face_detector\res10_300x300_ssd_iter_140000.caffemodel"
-faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
-
+pPath = r"face_detector\deploy.prototxt"
+wPath = r"face_detector\res10_300x300_ssd_iter_140000.caffemodel"
+FaceReg = cv2.dnn.readNet(pPath, wPath)
+import multiprocessing as mp
 # load the face mask detector model from disk
-maskNet = ML.load_model("mask_detector.model")
-def grabFrame(vs):
-	frames = vs.read()
+maskMdl = ML.load_model("FaceMaskDetection.model")
+def grabFrame(vid_str):
+	frames = vid_str.read()
 	frames = imutils.resize(frames, width=400)
 	return frames
 
@@ -31,8 +30,8 @@ def FDHelper(detections,h,w,frame):
 	# initialize our list of faces, their corresponding locations,
 	# and the list of predictions from our face mask network
 	faces = []
-	locs = []
-	preds = []
+	locations = []
+	predictions = []
 	for i in range(0, detections.shape[2]):
 		# extract the confidence (i.e., probability) associated with
 		# the detection
@@ -58,19 +57,19 @@ def FDHelper(detections,h,w,frame):
 			# add the face and bounding boxes to their respective
 			# lists
 			faces.append(face)
-			locs.append((startX, startY, endX, endY))
+			locations.append((startX, startY, endX, endY))
 
 	# only make a predictions if at least one face was detected
 	if len(faces) > 0:
 
 		faces = numpy.array(faces, dtype="float32")
-		preds = maskNet.predict(faces, batch_size=32)
+		predictions = maskMdl.predict(faces, batch_size=32)
 
 	# return a 2-tuple of the face locations and their corresponding
-	# locations
-	return (locs, preds)
+	# locationss
+	return (locations, predictions)
 
-def detect_and_predict_mask(frame, faceNet, maskNet):
+def detect_and_predict_mask(frame, FaceReg, maskMdl):
 	# grab the dimensions of the frame and then construct a blob
 	# from it
 	(h, w) = frame.shape[:2]
@@ -78,8 +77,8 @@ def detect_and_predict_mask(frame, faceNet, maskNet):
 		(104.0, 177.0, 123.0))
 
 	# pass the blob through the network and obtain the face detections
-	faceNet.setInput(blob)
-	detections = faceNet.forward()
+	FaceReg.setInput(blob)
+	detections = FaceReg.forward()
 	print(detections.shape)
 
 
@@ -93,8 +92,8 @@ def displayBoundingbox(frame,label,startX,startY,endx,endy,color):
 	cv2.imshow("Frame", frame)
 	return cv2.waitKey(1) & 0xFF
 
-def FaceDetection(locs,preds,frame): 
-	for (box, pred) in zip(locs, preds):
+def FaceDetection(locations,predictions,frame): 
+	for (box, pred) in zip(locations, predictions):
 			# unpack the bounding box and predictions
 			(startX, startY, endX, endY) = box
 			(mask, withoutMask) = pred
@@ -114,19 +113,19 @@ def FaceDetection(locs,preds,frame):
 			if key == ord("q"):
 				break
 
-def runProgram(vs):
+def runProgram(vid_str):
 	# loop over the frames from the video stream
 	while True:
 		# grab the frame from the threaded video stream and resize it
 		# to have a maximum width of 400 pixels
-		frame = grabFrame(vs)
+		frame = grabFrame(vid_str)
 
 		# detect faces in the frame and determine if they are wearing a
 		# face mask or not
-		(locs, preds) = detect_and_predict_mask(frame, faceNet, maskNet)
+		(locations, predictions) = detect_and_predict_mask(frame, FaceReg, maskMdl)
 		# loop over the detected face locations and their corresponding
 		# locations
-		FaceDetection(locs,preds,frame)
+		FaceDetection(locations,predictions,frame)
 
 
 
@@ -134,11 +133,14 @@ def runProgram(vs):
 
 
 
-# initialize the video stream
-print("Starting video stream...")
-vs = Video.VideoStream(src=0).start()
-runProgram(vs)
+if __name__=="__main__":
+	print("Starting Video Stream--")
+	vid_str = Video.VideoStream(src=0).start()
+	t1 = threading.Thread(target=runProgram, args=(vid_str,))
+	t1.start()
+	t1.join()
+	#runProgram(vid_str)
 
-# do a bit of cleanup
-cv2.destroyAllWindows()
-vs.stop()
+	# do a bit of cleanup
+	cv2.destroyAllWindows()
+	vid_str.stop()
