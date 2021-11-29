@@ -7,12 +7,13 @@ import tensorflow.keras.preprocessing.image as Preprocess
 import tensorflow.keras.models as ML
 import threading
 # load our serialized face detector model from disk
+
 pPath = r"face_detector\deploy.prototxt"
 wPath = r"face_detector\res10_300x300_ssd_iter_140000.caffemodel"
 FaceReg = cv2.dnn.readNet(pPath, wPath)
 import multiprocessing as mp
 # load the face mask detector model from disk
-maskMdl = ML.load_model("FaceMaskDetection.model")
+maskMdl = ML.load_model("./Output/FaceMaskDetection.model")
 def grabFrame(vid_str):
 	frames = vid_str.read()
 	frames = imutils.resize(frames, width=400)
@@ -21,7 +22,7 @@ def grabFrame(vid_str):
 def Process(frame,startY,endY,startX,endX):
 		face = frame[startY:endY, startX:endX]
 		face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-		face = cv2.resize(face, (224, 224))
+		face = cv2.resize(face, (230, 230))
 		face = Preprocess.img_to_array(face)
 		return mobilenet.preprocess_input(face)
 
@@ -73,7 +74,7 @@ def detect_and_predict_mask(frame, FaceReg, maskMdl):
 	# grab the dimensions of the frame and then construct a blob
 	# from it
 	(h, w) = frame.shape[:2]
-	blob = cv2.dnn.blobFromImage(frame, 1.0, (224, 224),
+	blob = cv2.dnn.blobFromImage(frame, 1.0, (230, 230),
 		(104.0, 177.0, 123.0))
 
 	# pass the blob through the network and obtain the face detections
@@ -134,12 +135,11 @@ def runProgram(vid_str):
 
 
 if __name__=="__main__":
-	print("Starting Video Stream--")
+	print("Starting Detect Mask script")
 	vid_str = Video.VideoStream(src=0).start()
 	t1 = threading.Thread(target=runProgram, args=(vid_str,))
 	t1.start()
 	t1.join()
-	#runProgram(vid_str)
 
 	# do a bit of cleanup
 	cv2.destroyAllWindows()
