@@ -23,58 +23,44 @@ class Detect():
 			face = Preprocess.img_to_array(face)
 			return mobilenet.preprocess_input(face)
 	def FDHelper(self,detections,height,width,frame,maskMdl):
-	
-		# initialize our list of faces, their corresponding locations,
-		# and the list of predictions from our face mask network
-		faces = []
-		locations = []
-		predictions = []
+
+		faces,locations,predictions = [],[],[]
 		for i in range(0, detections.shape[2]):
-			# extract the confidence (i.e., probability) associated with
-			# the detection
+
 			temp = detections[0, 0, i, 2]
 
-			# filter out weak detections by ensuring the confidence is
-			# greater than the minimum confidence
+
 			if temp > 0.5:
-				# compute the (x, y)-coordinates of the bounding box for
-				# the object
+
 				display = detections[0, 0, i, 3:7] * numpy.array([width, height, width, height])
 				(startX, startY, endX, endY) = display.astype("int")
 
-				# ensure the bounding boxes fall within the dimensions of
-				# the frame
+
 				startX = max(0, startX)
 				startY = max(0, startY)
 				endX = min(width - 1, endX)
 				endY = min(height - 1, endY)
-				# extract the face ROI, convert it from BGR to RGB channel
-				# ordering, resize it to 224x224, and preprocess it
+
 				face = self.Process(frame,startY,endY,startX,endX)
 
-				# add the face and bounding boxes to their respective
-				# lists
+
 				faces.append(face)
 				locations.append((startX, startY, endX, endY))
 
-		# only make a predictions if at least one face was detected
 		if len(faces) > 0:
 
 			faces = numpy.array(faces, dtype="float32")
 			predictions = maskMdl.predict(faces, batch_size=32)
 
-		# return a 2-tuple of the face locations and their corresponding
-		# locationss
+
 		return (locations, predictions)
 
-	def detect_and_predict_mask(self,frame, FaceReg, maskMdl):
-		# grab the dimensions of the frame and then construct a blob
-		# from it
+	def Face_Mask_Detection(self,frame, FaceReg, maskMdl):
+
 		(height, width) = frame.shape[:2]
 		image = cv2.dnn.blobFromImage(frame, 1.0, (230, 230),
 			(104.0, 177.0, 123.0))
 
-		# pass the blob through the network and obtain the face detections
 		FaceReg.setInput(image)
 		detections = FaceReg.forward()
 
@@ -82,31 +68,24 @@ class Detect():
 		return self.FDHelper(detections,height,width,frame,maskMdl)
 	
 	def displayBoundingbox(self,frame,label,startX,startY,endx,endy,color):
-		cv2.putText(frame, label, (startX, startY - 10),
-		cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
+		cv2.putText(frame, label, (startX, startY - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
 		cv2.rectangle(frame, (startX, startY), (endx, endy), color, 2)
-		# show the output frame
 		cv2.imshow("Frame", frame)
 		return cv2.waitKey(1) & 0xFF
 
 	def FaceDetection(self,locations,predictions,frame): 
 		for (display, pred) in zip(locations, predictions):
-				# unpack the bounding box and predictions
 				(startX, startY, endX, endY) = display
 				(mask, withoutMask) = pred
 
-				# determine the class label and color we'll use to draw
-				# the bounding box and text
-				label = "Mask" if mask > withoutMask else "No Mask"
-				color = (50, 68, 230) if label == "Mask" else (250, 36, 7)
+				label = "No Mask" if mask > withoutMask else "Mask"
+				color = (0, 0, 255) if label == "Mask" else (255, 0, 0)
 
-				# include the probability in the label
-				label = "{}: {:.2f}%".format(label, max(mask, withoutMask) * 100)
+				label = f"{label}: {round(max(mask, withoutMask) * 100,2)}%"
 
 
 				self.key = self.displayBoundingbox(frame,label,startX,startY,endX,endY,color)
 
-				# if the `q` key was pressed, break from the loop
 				if self.key == ord("q"):
 					return False
 
@@ -118,28 +97,19 @@ def runProgram(vid_str):
 	cv2.startWindowThread()
 	run = True
 
-	# loop over the frames from the video stream
 	while run:
-		# grab the frame from the threaded video stream and resize it
-		# to have a maximum width of 400 pixels
+
 		DetectUser.frames = vid_str.read()
 		DetectUser.frames  = imutils.resize(DetectUser.frames , width=800)
 
-		# detect faces in the frame and determine if they are wearing a
-		# face mask or not
-		(DetectUser.locations, DetectUser.predictions) = DetectUser.detect_and_predict_mask(DetectUser.frames , FaceReg, DetectUser.maskMdl)
-		# loop over the detected face locations and their corresponding
-		# locations
+		(DetectUser.locations, DetectUser.predictions) = DetectUser.Face_Mask_Detection(DetectUser.frames , FaceReg, DetectUser.maskMdl)
+
 		if (DetectUser.FaceDetection(DetectUser.locations,DetectUser.predictions,DetectUser.frames) == False):
 			run = False
 		else: 
-			(DetectUser.locations, DetectUser.predictions) = DetectUser.detect_and_predict_mask(DetectUser.frames , FaceReg, DetectUser.maskMdl)
+			(DetectUser.locations, DetectUser.predictions) = DetectUser.Face_Mask_Detection(DetectUser.frames , FaceReg, DetectUser.maskMdl)
 	cv2.destroyAllWindows()
 	vid_str.stop()
-
-
-
-
 
 
 if __name__=="__main__":
