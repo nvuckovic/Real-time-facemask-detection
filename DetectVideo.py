@@ -1,4 +1,3 @@
-#import the necessary packages
 import numpy
 import imutils, time, cv2, os
 import imutils.video as Video
