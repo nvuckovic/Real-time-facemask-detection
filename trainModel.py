@@ -11,8 +11,7 @@ import sklearn.preprocessing as SKPreprocess
 import tensorflow.keras.applications.mobilenet_v2  as mobilenet 
 import tensorflow.keras.layers as Layers
 import tensorflow.keras.utils as utils 
-import time
-import sys
+
 class TrainModel():
 	def __init__(self):
 		self.InitialLR = .0005
@@ -25,6 +24,7 @@ class TrainModel():
 		self.Processes = None
 		self.Hd = None
 		self.xTrain, self.xTest, self.yTrain, self.yTest = None, None,None,None
+
 	def StoreInfo(self):
 		for D in self.Divisions:
 			P = os.path.join(self.Folders, D)
@@ -35,7 +35,6 @@ class TrainModel():
 				content = mobilenet.preprocess_input(content)
 				self.data.append(content)
 				self.labels.append(D)
-
 
 	def Construct_Head_model(self,Model): 
 		Processing = Layers.AveragePooling2D(pool_size=(8, 8))(Model.output)
@@ -60,61 +59,39 @@ class TrainModel():
 		plt.title("Loss Versus Accuracy")
 		plt.xlabel("Epoch #")
 		plt.ylabel("Accuracy per Loss")
-
 		plt.savefig("ModelOutput.png")
 
 	def LabelBinarizer(self):
 		self.lb = SKPreprocess.LabelBinarizer()
-
-
 		self.data = numpy.array(self.data, dtype="float32")
 		self.labels = numpy.array(utils.to_categorical(self.lb.fit_transform(self.labels)))
+		(self.xTrain, self.xTest, self.yTrain, self.yTest) = SKSelecton.train_test_split(self.data, self.labels, test_size=0.25, stratify=self.labels, random_state=48)
 
-		(self.xTrain, self.xTest, self.yTrain, self.yTest) = SKSelecton.train_test_split(self.data, self.labels,
-			test_size=0.25, stratify=self.labels, random_state=48)
 	def TrainHelper(self,op):
-
 		op = optimizer.Adam(learning_rate=self.InitialLR, decay=(self.InitialLR /self.EPO))
 		self.mdl.compile(loss="binary_crossentropy", optimizer=op,metrics=["accuracy"])
-
 		print("Training...")
 		batch_size = self.batch_size
 		self.Hd = self.mdl.fit(self.agm.flow(self.xTrain, self.yTrain, batch_size=batch_size),steps_per_epoch=len(self.xTrain) // batch_size,validation_data=(self.xTest, self.yTest),validation_steps=len(self.xTest) // batch_size,epochs=self.EPO)
 		self.predict = self.mdl.predict(self.xTest, batch_size=self.batch_size)
 		print("Almost done :)")
-
-
 		self.predict = numpy.argmax(self.predict, axis=1)
-
-		print(SKMetrics.classification_report(self.yTest.argmax(axis=1), self.predict,
-			target_names=self.lb.classes_))
+		print(SKMetrics.classification_report(self.yTest.argmax(axis=1), self.predict, target_names=self.lb.classes_))
 
 	def TrainModelandExport(self):
 		self.agm = Preprocess.ImageDataGenerator(rotation_range=25,zoom_range=0.18,width_shift_range=0.25,height_shift_range=0.22,
 			shear_range=0.18,horizontal_flip=True,fill_mode="nearest")
-
 		self.bMdl = App.MobileNetV2(include_top=False, input_tensor=Layers.Input(shape=(230, 230, 3)))
-
-
-		self.Construct_Head_model(self.bMdl)
-
-
-		
-		
+		self.Construct_Head_model(self.bMdl)		
 		print("Saving FaceMaskDetection Model--")
 		self.mdl.save("./Output/FaceMaskDetection.model", save_format="h5")
-
 		self.plot()
+
 def runprogram():
-
 	Model = TrainModel()
-
 	Model.StoreInfo()
 	Model.LabelBinarizer()
 	Model.TrainModelandExport()
 
 if __name__=="__main__":
 	runprogram()
-
-
-

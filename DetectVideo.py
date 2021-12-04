@@ -5,7 +5,6 @@ import tensorflow.keras.applications.mobilenet_v2  as mobilenet
 import tensorflow.keras.preprocessing.image as Preprocess
 import tensorflow.keras.models as ML
 import threading
-import multiprocessing as mp
 
 class Detect():
 	def __init__(self):
@@ -21,28 +20,21 @@ class Detect():
 			face = cv2.resize(face, (230, 230))
 			face = Preprocess.img_to_array(face)
 			return mobilenet.preprocess_input(face)
-	def FDHelper(self,detections,height,width,frame,maskMdl):
 
+	def FDHelper(self,detect,height,width,frame,maskMdl):
 		faces,locations,predictions = [],[],[]
-		for i in range(0, detections.shape[2]):
 
-			temp = detections[0, 0, i, 2]
+		for i in range(0, detect.shape[2]):
+			
+			if detect[0, 0, i, 2] > 0.5:
 
-
-			if temp > 0.5:
-
-				display = detections[0, 0, i, 3:7] * numpy.array([width, height, width, height])
+				display = detect[0, 0, i, 3:7] * numpy.array([width, height, width, height])
 				(startX, startY, endX, endY) = display.astype("int")
-
-
 				startX = max(0, startX)
 				startY = max(0, startY)
 				endX = min(width - 1, endX)
 				endY = min(height - 1, endY)
-
 				face = self.Process(frame,startY,endY,startX,endX)
-
-
 				faces.append(face)
 				locations.append((startX, startY, endX, endY))
 
@@ -51,19 +43,14 @@ class Detect():
 			faces = numpy.array(faces, dtype="float32")
 			predictions = maskMdl.predict(faces, batch_size=32)
 
-
 		return (locations, predictions)
 
 	def Face_Mask_Detection(self,frame, FaceReg, maskMdl):
-
 		(height, width) = frame.shape[:2]
 		image = cv2.dnn.blobFromImage(frame, 1.0, (230, 230),
 			(104.0, 177.0, 123.0))
-
 		FaceReg.setInput(image)
 		detections = FaceReg.forward()
-
-
 		return self.FDHelper(detections,height,width,frame,maskMdl)
 	
 	def displayBoundingbox(self,frame,label,startX,startY,endx,endy,color):
@@ -73,25 +60,20 @@ class Detect():
 		return cv2.waitKey(1) & 0xFF
 
 	def FaceDetection(self,locations,predictions,frame): 
+
 		for (display, pred) in zip(locations, predictions):
 				(startX, startY, endX, endY) = display
 				(mask, withoutMask) = pred
-
 				label = "No Mask" if mask > withoutMask else "Mask"
 				color = (0, 0, 255) if label == "Mask" else (255, 0, 0)
-
 				label = f"{label}: {round(max(mask, withoutMask) * 100,2)}%"
-
-
 				self.key = self.displayBoundingbox(frame,label,startX,startY,endX,endY,color)
 
 				if self.key == ord("q"):
 					return False
 
-
 def runProgram(vid_str):
-	DetectUser = Detect() 
-
+	DetectUser = Detect()
 	FaceReg = cv2.dnn.readNet(DetectUser.pPath, DetectUser.wPath)
 	cv2.startWindowThread()
 	run = True
@@ -100,16 +82,15 @@ def runProgram(vid_str):
 
 		DetectUser.frames = vid_str.read()
 		DetectUser.frames  = imutils.resize(DetectUser.frames , width=800)
-
 		(DetectUser.locations, DetectUser.predictions) = DetectUser.Face_Mask_Detection(DetectUser.frames , FaceReg, DetectUser.maskMdl)
 
 		if (DetectUser.FaceDetection(DetectUser.locations,DetectUser.predictions,DetectUser.frames) == False):
 			run = False
+
 		else: 
 			(DetectUser.locations, DetectUser.predictions) = DetectUser.Face_Mask_Detection(DetectUser.frames , FaceReg, DetectUser.maskMdl)
 	cv2.destroyAllWindows()
 	vid_str.stop()
-
 
 if __name__=="__main__":
 	print("Starting Detect Mask script")
@@ -117,5 +98,3 @@ if __name__=="__main__":
 	t1 = threading.Thread(target=runProgram, args=(vid_str,))
 	t1.start()
 	t1.join()
-
-
