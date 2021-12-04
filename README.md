@@ -4,7 +4,7 @@ Files : Gui.py
 	trainModel.py
 	DetectVideo.py
 	
-Download/import the necessary libraries: TensorFlow, Keras, OpenCV,matplotlib,imutils, NumPy, sklearn,Tkinter,OS, and Threading.
+Download/import the necessary libraries: TensorFlow, Keras, OpenCV, matplotlib, imutils, NumPy, sklearn,Tkinter, OS, and Threading.
 Please update the dataset folder location in the line 21 of 
 trainModel.py and run it. It takes around 45 mins to an hour 
 for training.
